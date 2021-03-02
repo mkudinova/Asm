@@ -1,0 +1,128 @@
+/*
+Syscalls: open, read, write
+
+man 2
+https://man7.org/linux/man-pages/man2/open.2.html
+https://man7.org/linux/man-pages/man2/read.2.html
+https://man7.org/linux/man-pages/man2/write.2.html
+https://man7.org/linux/man-pages/man2/close.2.html
+https://man7.org/linux/man-pages/man3/errno.3.html
+
+или, если нужно по-русски
+https://www.opennet.ru/man.shtml?topic=open&category=2
+https://www.opennet.ru/man.shtml?topic=read&category=2
+https://www.opennet.ru/man.shtml?topic=write&category=2
+https://www.opennet.ru/man.shtml?topic=close&category=2
+https://www.opennet.ru/man.shtml?topic=errno&category=3&russian=0
+
+И совсем кратко:
+	int open(const char *pathname, int flags);
+	ssize_t read(int fd, void *buf, size_t count);
+	ssize_t write(int fd, const void *buf, size_t count);
+
+*/
+
+#include <sys/types.h>		// open
+#include <sys/stat.h>		// open
+#include <fcntl.h>			// open
+#include <unistd.h>			// read, write
+#include <errno.h>			// errno
+#include <stdio.h>			// printf
+#include <stdlib.h>			// malloc
+#include <string.h>			// memset
+
+#define N 10
+
+int main(){
+	// подготовить память
+	char * arr = malloc(sizeof(char) * N);
+	if (arr == NULL)
+		return errno;
+	arr = memset(arr, 'A', N);
+							// выделили память, куда копировать из файла
+							// теперь перед каждым return должна стоять free()
+							// и заполнили ее буквами A (чтобы записать что-то "осмысленное", если файл пуст)
+
+							// или можно было сделать 
+							// char arr[N] = "NEW FILE";
+							// тут последние N-8 символов заполнятся нулями
+
+	// открыть файл
+	int fd = open("1.txt", O_RDWR | O_CREAT);
+							// в fd теперь лежит file descriptor (файловый дескриптор)
+							// это уникальный идентификатор файла
+							// флаг O_RDWR - означает открыть и на чтение, и на запись
+							// O_CREAT - создать, если не существовал
+							// есть еще флаги, например:
+							// O_RDONLY - только чтение, O_WRONLY - только запись
+							// флаги можно комбинировать с помощью бинарного "или"
+							// например, O_RDWR | O_APPEND
+
+	if (fd == -1) {
+		free(arr);
+		return errno;
+							// если произошла ошибка
+							// не забыть освободить память
+							// errno - кодирует номер ошибки
+	}
+							// ниже этой строки, перед каждым return должен стоять close()
+	
+	// считать из файла
+	ssize_t size_r = read(fd, arr, N);
+							// arr - адрес, куда положить прочитанное, N - сколько байт
+							// size_r сколько байт считали
+							// позиция в файле изменяется (увеличивается на size_r)
+							// size_r = 0 - конец файла
+							// size_r = -1 - ошибка
+
+	if (size_r == -1) {
+		free(arr);
+		close(fd);
+		return errno;
+							// если произошла ошибка
+							// не забыть освободить память
+							// не забыть закрыть файл
+							// errno - кодирует номер ошибки
+	}
+
+	if (size_r != N) {
+		printf("Read() cannot read N bytes!\n");
+							// если считали меньше байт, чем хотели
+							// например, если файл закончился раньше
+							
+							// не закрываем файл, продолжим запись
+	}
+
+	// записать в файл
+	ssize_t size_w = write(fd, arr, N);
+							// arr - адрес, откуда брать данные для записи в файл,
+
+	if (size_w == -1) {
+		free(arr);
+		close(fd);
+		return errno;
+							// если произошла ошибка
+							// не забыть освободить память
+							// не забыть закрыть файл
+							// errno - кодирует номер ошибки
+	}
+
+	if (size_w != N) {
+		printf("Write() cannot write N bytes!\n");
+							// если записали меньше байт, чем хотели
+							// например, если кончилось место на диске
+							// это считается "a successful write()"
+							// и можно потом позвать write еще раз, чтобы дозаписать недостающее
+							// а можно просто продолжить до return 0; не забыв закрыть файл
+	}
+
+	// освободить память
+	free(arr);
+							// не забыть освободить память
+
+	// закрыть файл
+	close(fd);
+							// не забыть закрыть файл
+	return 0;
+							// успех
+}
