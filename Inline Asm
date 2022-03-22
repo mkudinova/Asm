@@ -1,0 +1,35 @@
+#include <stdio.h>
+#define N 4
+int main()
+{
+    int arr[N] = {1, 2, 3, 4};
+    int A = 0;
+    for(int i = 0; i < N; i++)
+        A = A + arr[i];
+    printf("Array:\narr = %p\nsum = %d\n", arr, A);
+    
+    int N_count = N;
+    long long res = 0;
+    int * p_arr = arr;
+    printf("Variables:\nres = %lld\narr = %p\n", res, p_arr);
+    
+	asm volatile(
+		".intel_syntax noprefix\n"
+        
+        "xor rdx, rdx;\n"
+        "L1:;\n"
+        "xor rbx, rbx;\n"
+		"mov ebx, [rax + (rcx-1)*4];\n"
+		"add rdx, rbx;\n"
+		"loop L1;\n"
+
+		".att_syntax noprefix"
+		: "=d" (res)
+		: "a" (p_arr), "c" (N_count)
+	);
+    printf("After asm:\nres = %lld\narr = %p", res, p_arr);
+
+    return 0;
+}
+
+// See details on https://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html
